@@ -7,8 +7,17 @@ using namespace std;
 
 // Struct to hold the parsed input
 struct Input2 {
-    int numTrees;   // 't' from the #p line
-    int numLeaves;  // 'n' from the #p line
+    int numTrees = 0;       // 't' from the #p line
+    int numLeaves = 0;      // 'n' from the #p line
+    
+    // Lower bound track parameters
+    float a = 1.0f;         // 'a' from the #a line
+    int b = 0;              // 'b' from the #a line
+    
+    // Tree decomposition parameters
+    int treeWidth = -1;     // 'tw' from the #x treedecomp line (-1 means not provided)
+    string treeDecompRaw = ""; // Stores the raw "[{tw},{bags},{edges}]" string
+    
     vector<string> trees;
 };
 
@@ -17,33 +26,48 @@ Input2 readInput() {
     cin.tie(nullptr);
 
     string line;
-    int numTrees = 0, numLeaves = 0;
-    vector<string> trees;
+    Input2 inputData;
+
     while (getline(cin, line)) {
         if (line.empty()) continue;  // ignore empty lines
+
         if (line[0] == '#') {
             if (line.size() > 2 && line[1] == 'p') {
                 // parse "#p t n"
                 stringstream ss(line.substr(2)); // skip "#p"
-                ss >> numTrees >> numLeaves;
+                ss >> inputData.numTrees >> inputData.numLeaves;
             }
-            continue; // ignore all comment lines
+            else if (line.size() > 2 && line[1] == 'a') {
+                // parse "#a a b"
+                stringstream ss(line.substr(2)); // skip "#a"
+                ss >> inputData.a >> inputData.b;
+            }
+            else if (line.size() > 2 && line[1] == 'x') {
+                // parse "#x key value"
+                string prefix = "#x treedecomp ";
+                if (line.substr(0, prefix.size()) == prefix) {
+                    string value = line.substr(prefix.size());
+                    inputData.treeDecompRaw = value;
+                    
+                    // Extract {tw} from the JSON subset "[tw,...]"
+                    size_t bracketPos = value.find('[');
+                    size_t commaPos = value.find(',');
+                    if (bracketPos!= string::npos && commaPos!= string::npos && commaPos > bracketPos) {
+                        string twStr = value.substr(bracketPos + 1, commaPos - bracketPos - 1);
+                        try {
+                            inputData.treeWidth = stoi(twStr);
+                        } catch (...) {
+                            inputData.treeWidth = -1; // Fallback if parsing fails
+                        }
+                    }
+                }
+            }
+            continue; // ignore all other comment lines
         }
-        cout << "#Parsed line: " << line << "\n"; // Debug: print non-comment lines
 
         // any other non-empty line is a tree in Newick format
-        trees.push_back(line);
+        inputData.trees.push_back(line);
     }
 
-    // // CRITICAL: Print summary to cerr, NOT cout. 
-    // // The checker will fail if anything other than the forest is printed to stdout.
-    // cerr << "# Number of trees declared: " << numTrees << "\n";
-    // cerr << "# Number of leaves per tree: " << numLeaves << "\n";
-    // cerr << "# Actual trees read: " << trees.size() << "\n";
-    
-    // Optional safeguard if you only want exactly 2 trees
-    // if (trees.size()!= 2) {
-    //     cerr << " Expected exactly 2 trees, but read " << trees.size() << "\n";
-    // }
-    return {numTrees, numLeaves, trees};
+    return inputData;
 }
