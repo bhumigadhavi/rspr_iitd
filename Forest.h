@@ -184,14 +184,14 @@ class Forest {
 		for(it = components.begin(); it != components.end(); it++) {
 			Node *root = *it;
 			if (root == NULL)
-				cout << "!";
-			else if (root->is_leaf() && root->str() == "")
-				cout << "*";
+				continue; //cout << "!";
+			else if (root->is_leaf() && (root->str() == "" || root->str() == "p" || root->str() == DEAD_COMPONENT))
+				continue; //cout << "*";
 			else
 				root->print_subtree_hlpr();
-			cout << " ";
+			cout << ";" << endl;
 		}
-		cout << endl;
+		// cout << endl;
 	}
 
 	// print the components seperated by s
@@ -424,6 +424,38 @@ void unprotect_edges() {
 	for(int i = 0; i < size(); i++) {
 		get_component(i)->unprotect_subtree();
 	}
+}
+
+vector<Node*> forest_leaves() {
+	vector<Node*> result;
+	for (int i = 0; i < num_components(); i++) {
+		Node* comp = get_component(i);
+		if (!comp) continue;
+		vector<Node*> L = comp->find_leaves();
+		result.insert(result.end(), L.begin(), L.end());
+	}
+	return result;
+}
+
+Node* find_leaf(const string& name) {
+	for (int i = 0; i < num_components(); i++) {
+		Node* comp = get_component(i);
+		if (!comp) continue;
+		for (Node* lf : comp->find_leaves())
+			if (lf->str() == name) return lf;
+	}
+	return nullptr;
+}
+
+void make_singleton(Node* leaf) {
+	Node* par = leaf->parent();
+	leaf->cut_parent();
+	add_component(leaf);
+	if (par) par->contract(true);
+}
+
+int ord() {
+	return num_components() - 1;
 }
 
 };

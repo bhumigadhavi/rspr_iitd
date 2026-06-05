@@ -2714,6 +2714,15 @@ int get_name_num() {
 
 };
 
+inline Node* find_lca(Node* a, Node* b) {
+	if (!a || !b) return nullptr;
+	set<Node*> anc;
+	for (Node* c = a; c; c = c->parent()) anc.insert(c);
+	for (Node* c = b; c; c = c->parent())
+		if (anc.count(c)) return c;
+	return nullptr;
+}
+
 // function prototypes
 Node *build_tree(string s);
 Node *build_tree(string s, set<string, StringCompare> *include_only);
