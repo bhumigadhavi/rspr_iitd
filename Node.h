@@ -1782,7 +1782,9 @@ class Node {
 		    if (twin != NULL) {
 		      //set the twin itself to -1
 		      //This will be used later when traversing down to notify we have hit the node
-		      sibling_descendants_counter[twin->get_preorder_number()] = -1;
+		      int pn = twin->get_preorder_number();
+		      if (pn < 0 || pn >= max_preorder) continue;
+		      sibling_descendants_counter[pn] = -1;
 		      twin->find_pseudo_lca_descendant_count_hlpr(sibling_descendants_counter);
 		    }
 		  }

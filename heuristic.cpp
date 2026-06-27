@@ -74,6 +74,7 @@ int main() {
     signal(SIGINT, signal_handler);
 
 	// # Core B&B pruning rules: O(1) checks per node, proven safe
+	LEAF_REDUCTION = true;
 	CUT_ONE_B = true;
 	REVERSE_CUT_ONE_B = true;
 	REVERSE_CUT_ONE_B_3 = true;
@@ -94,104 +95,73 @@ int main() {
 	srand(unsigned(time(0)));
 
 	Input2 inputData = readInput();
-	
-	string T1_line = inputData.trees[0];
-	string T2_line = inputData.trees[1];
+
+	int m = inputData.numTrees;
 	int n = inputData.numLeaves;
-	Node *T1;
-	Node *T2;
-	
-	T1 = build_tree(T1_line);
-	T2 = build_tree(T2_line);
-
-	
-	// checking reduction rules
-	if (REDUCE_ONLY) {
-
-		T1->preorder_number();
-		T1->edge_preorder_interval();
-		T2->preorder_number();
-		T2->edge_preorder_interval();
-
-		
-		Forest F1 = Forest(T1);
-		Forest F2 = Forest(T2);
-		
-		F1.print_components();
-		F2.print_components();
-
-		sync_twins(&F1, &F2);
-		
-		if (MULTIFURCATING) {
-			reduction_leaf_mult(&F1, &F2);
-		}
-		else {
-			reduction_leaf(&F1, &F2);
-		}
-		
-		F1.print_components();
-		F2.print_components();
+	if ((int)inputData.trees.size() < m)
+		m = (int)inputData.trees.size();
+	if (m < 2) {
+		cerr << "# Error: need at least 2 trees." << endl;
+		return 1;
 	}
 
-	//print trees
-	if (!QUIET) {
-		cout << "T1: ";
-		T1->print_subtree();
-		cout << "T2: ";
-		T2->print_subtree();
-		cout << endl;
-	}
+	// Build and label all trees
+	vector<Node *> trees;
+	for (int i = 0; i < m; i++)
+		trees.push_back(build_tree(inputData.trees[i]));
+	for (Node *t : trees)
+		t->labels_to_numbers(&label_map, &reverse_label_map);
+	if (n == 0)
+		n = (int)label_map.size();
 
-	//check this out
-	if (LCA_TEST) {
-		LCA lca_query = LCA(T1);
-		cout << endl;
-		lca_query.debug();
-		cout << endl;
-		vector<Node *> leaves = T1->find_leaves();
-		for(vector<Node *>::iterator i = leaves.begin(); i != leaves.end(); i++) {
-			for(vector<Node *>::iterator j = i; j != leaves.end(); j++) {
-				if (j==i)
-					continue;
-				Node *lca = lca_query.get_lca(*i, *j);
-				(*i)->print_subtree_hlpr();
-				cout << "\t";
-				(*j)->print_subtree_hlpr();
-				cout << "\t";
-				lca->print_subtree();
+	// Among all pairs find the one with the highest 3-approx distance.
+	// That pair gives the tightest lower-bound / best heuristic upper-bound.
+	int best_approx = -1;
+	int best_i = 0, best_j = 1;
+	if (m == 2) {
+		Forest fa = Forest(trees[0]);
+		Forest fb = Forest(trees[1]);
+		best_approx = rSPR_worse_3_approx(&fa, &fb);
+	} else {
+		for (int i = 0; i < m; i++) {
+			for (int j = i + 1; j < m; j++) {
+				Forest fa = Forest(trees[i]);
+				Forest fb = Forest(trees[j]);
+				int approx = rSPR_worse_3_approx(&fa, &fb);
+				if (approx > best_approx) {
+					best_approx = approx;
+					best_i = i;
+					best_j = j;
+				}
 			}
 		}
-		T1->delete_tree();
-		T2->delete_tree();
-		return 0;
-	}
-	
-	T1->labels_to_numbers(&label_map, &reverse_label_map);
-	T2->labels_to_numbers(&label_map, &reverse_label_map);
-
-	// for debugging
-	if (SHOW_MOVES) {
-		show_moves(T1, T2, &label_map, &reverse_label_map);
-		T1->delete_tree();
-		T2->delete_tree();
-		return 0;
 	}
 
-	//heuristic algorithm
+	Node *T1 = trees[best_i];
+	Node *T2 = trees[best_j];
+
+	// heuristic algorithm: exact B&B on the hardest pair
 	if (CLUSTER_TEST) {
 		T1->preorder_number();
 		T1->edge_preorder_interval();
 		T2->preorder_number();
 		T2->edge_preorder_interval();
 
-		int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,false, &label_map, &reverse_label_map, -1, n - 1, NULL, NULL);
+		Forest *out_F1 = NULL;
+		Forest *out_F2 = NULL;
+		int exact_k = rSPR_branch_and_bound_simple_clustering(T1, T2, false,
+			&label_map, &reverse_label_map, best_approx / 3, min(best_approx, n - 1), &out_F1, &out_F2);
+		if (out_F1 != NULL) {
+			out_F1->numbers_to_labels(&reverse_label_map);
+			out_F1->print_components();
+			delete out_F1;
+		}
+		if (out_F2 != NULL)
+			delete out_F2;
 		cout << "# exact_k=" << exact_k << endl;
-		T1->delete_tree();
-		T2->delete_tree();
+		for (Node *t : trees) t->delete_tree();
 		return 0;
 	}
 
-	// cleanup
-	T1->delete_tree();
-	T2->delete_tree();
+	for (Node *t : trees) t->delete_tree();
 }

@@ -18,6 +18,8 @@ struct Input2 {
     int treeWidth = -1;     // 'tw' from the #x treedecomp line (-1 means not provided)
     string treeDecompRaw = ""; // Stores the raw "[{tw},{bags},{edges}]" string
     
+    string idigest = """";
+    string name = "";
     vector<string> trees;
 };
 
@@ -61,6 +63,14 @@ Input2 readInput() {
                         }
                     }
                 }
+            }
+            else if (line.size() > 2 && line[1] == 's') {
+                const string pfx_idigest = "#s idigest ";
+                const string pfx_name    = "#s name ";
+                if (line.substr(0, pfx_idigest.size()) == pfx_idigest)
+                    inputData.idigest = line.substr(pfx_idigest.size());
+                else if (line.substr(0, pfx_name.size()) == pfx_name)
+                    inputData.name = line.substr(pfx_name.size());
             }
             continue; // ignore all other comment lines
         }
